@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Clinic {
+  id        String   @id @default(cuid())
+  name      String
+  location  String?
+  phone     String?
+  timezone  String?
+  logo      String?
+  petIdMode      String?  @default("MANUAL")
+  petIdFormat    String?  @default("PET####") 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  owners       Owner[]
+  pets         Pet[]
+  appointments Appointment[]
+  visits       Visit[]
+  users        User[]
+  notes        Note[]
+  invites      Invite[]
+  notifications Notification[]
+
+  @@map("clinics")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String?  @unique  // ← Add the ? to make it optional
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  role      UserRole @default(VET)
+  clinicId  String
+  notificationPreferences NotificationPreference?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  visits       Visit[]
+  notifications Notification[]
+
+
+  @@index([clinicId])
+  @@map("users")
+}
+
+model Owner {
+  id        String   @id @default(cuid())
+  idNumber  String   @unique
+  name      String
+  phone     String
+  address   String?
+  clinicId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  pets   Pet[]
+
+  @@index([clinicId])
+  @@index([phone])
+  @@map("owners")
+}
+
+model Pet {
+  id        String     @id @default(cuid())
+  idNumber  String     @unique
+  name      String
+  species   String
+  breed     String?
+  sex       String
+  color     String?
+  status    PetStatus  @default(ACTIVE)
+  ownerId   String
+  clinicId  String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Relations
+  owner        Owner         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  clinic       Clinic        @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+  visits       Visit[]
+  notes        Note[]
+
+  @@index([clinicId])
+  @@index([ownerId])
+  @@index([status])
+  @@map("pets")
+}
+
+model Appointment {
+  id        String            @id @default(cuid())
+  date      DateTime
+  time      String
+  reason    String
+  status    AppointmentStatus @default(CONFIRMED)
+  petId     String
+  vetId     String
+  clinicId  String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  // Relations
+  pet    Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
+  vet    User   @relation(fields: [vetId], references: [id])
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([petId])
+  @@index([date])
+  @@map("appointments")
+}
+
+model Visit {
+  id        String   @id @default(cuid())
+  date      DateTime @default(now())
+  history   String?
+  diagnosis String?
+  treatment String?
+  notes     String?
+  petId     String
+  vetId     String
+  clinicId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  pet    Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
+  vet    User   @relation(fields: [vetId], references: [id])
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([petId])
+  @@index([date])
+  @@map("visits")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  title     String
+  content   String   @db.Text
+  petId     String
+  clinicId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  pet    Pet    @relation(fields: [petId], references: [id], onDelete: Cascade)
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([petId])
+  @@index([clinicId])
+  @@map("notes")
+}
+
+model Invite {
+  id         String   @id @default(cuid())
+  email      String
+  role       String   // VET, ADMIN, RECEPTIONIST
+  token      String   @unique
+  status     String   @default("PENDING") // PENDING, ACCEPTED, CANCELLED, EXPIRED
+  clinicId   String
+  invitedBy  String   // Clerk user ID of person who sent invite
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  clinic     Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([token])
+  @@index([email])
+  @@map("invites")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  clinicId  String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([clinicId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  
+  // Communication Channels
+  emailNotifications       Boolean @default(true)
+  smsNotifications         Boolean @default(false)
+  
+  // Appointment Notifications
+  appointmentReminders     Boolean @default(true)
+  appointmentConfirmations Boolean @default(true)
+  
+  // System Notifications
+  newPetRegistration       Boolean @default(true)
+  staffUpdates             Boolean @default(false)
+  systemAlerts             Boolean @default(true)
+  marketingEmails          Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+
+enum UserRole {
+  ADMIN
+  VET
+  NURSE
+  RECEPTION
+}
+
+enum PetStatus {
+  ACTIVE
+  DECEASED
+  TRANSFERRED
+}
+
+enum AppointmentStatus {
+  CONFIRMED
+  CANCELED
+  COMPLETED
+}
+
+enum NotificationType {
+  APPOINTMENT
+  PET
+  VISIT
+  STAFF
+}
