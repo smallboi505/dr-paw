@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -12,10 +12,13 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const params = await context.params;
+    const id = params.id;
+
     const notification = await prisma.notification.update({
       where: {
-        id: params.id,
-        userId: user.id, // Ensure user owns this notification
+        id,
+        userId: user.id,
       },
       data: {
         read: true,
@@ -34,7 +37,7 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getCurrentUser();
@@ -42,9 +45,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const params = await context.params;
+    const id = params.id;
+
     await prisma.notification.delete({
       where: {
-        id: params.id,
+        id,
         userId: user.id,
       },
     });
