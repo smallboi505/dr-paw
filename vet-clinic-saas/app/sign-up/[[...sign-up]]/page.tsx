@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSignUp } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -20,7 +20,6 @@ function SignUpContent() {
   const [verifying, setVerifying] = useState(false);
   const [code, setCode] = useState("");
   
-  // Check if this is an invite signup (redirect_url contains accept-invite)
   const redirectUrl = searchParams.get("redirect_url") || "";
   const isInviteSignup = redirectUrl.includes("accept-invite");
   
@@ -33,7 +32,21 @@ function SignUpContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!isLoaded) return;
+    if (!isLoaded || !signUp) return;
+    
+    // Basic validation
+    if (!isInviteSignup && !formData.clinicName.trim()) {
+      setError("Please enter your clinic name");
+      return;
+    }
+    if (!formData.email.trim()) {
+      setError("Please enter your email address");
+      return;
+    }
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters");
+      return;
+    }
     
     setLoading(true);
     setError("");
@@ -42,34 +55,40 @@ function SignUpContent() {
       let username;
       
       if (isInviteSignup) {
-        // For invites, use email as username (they're joining existing clinic)
         username = formData.email.split('@')[0] + Math.random().toString(36).substring(2, 6);
       } else {
-        // For new clinics, sanitize clinic name for username
         username = formData.clinicName
           .toLowerCase()
           .replace(/[^a-z0-9]/g, '-')
           .replace(/-+/g, '-')
           .replace(/^-|-$/g, '');
+        
+        // Ensure username is valid (min 3 chars)
+        if (username.length < 3) {
+          username = username + Math.random().toString(36).substring(2, 6);
+        }
       }
 
-      // Create the user with Clerk
       await signUp.create({
         username: username,
         emailAddress: formData.email,
         password: formData.password,
       });
 
-      // Send email verification code
       await signUp.prepareEmailAddressVerification({
         strategy: "email_code",
       });
 
-      // Show verification step
       setVerifying(true);
     } catch (err: any) {
       console.error("Signup error:", err);
-      setError(err.errors?.[0]?.message || "Failed to sign up");
+      // Show the most descriptive error available
+      const clerkError = err.errors?.[0];
+      if (clerkError) {
+        setError(clerkError.longMessage || clerkError.message || "Failed to sign up");
+      } else {
+        setError(err.message || "Failed to sign up. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -84,21 +103,16 @@ function SignUpContent() {
     setError("");
 
     try {
-      // Verify the email code
       const completeSignUp = await signUp.attemptEmailAddressVerification({
         code,
       });
 
       if (completeSignUp.status === "complete") {
-        // Set the active session
         await setActive({ session: completeSignUp.createdSessionId });
         
-        // Redirect based on signup type
         if (isInviteSignup && redirectUrl) {
-          // For invites, redirect back to accept invite page
           router.push(redirectUrl);
         } else {
-          // For new clinics, redirect to onboarding
           router.push("/onboarding");
         }
       } else {
@@ -107,7 +121,8 @@ function SignUpContent() {
       }
     } catch (err: any) {
       console.error("Verification error:", err);
-      setError(err.errors?.[0]?.message || "Invalid verification code");
+      const clerkError = err.errors?.[0];
+      setError(clerkError?.longMessage || clerkError?.message || "Invalid verification code");
     } finally {
       setLoading(false);
     }
@@ -117,7 +132,6 @@ function SignUpContent() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          {/* Logo */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
               <div className="w-16 h-16 bg-[#C00000] rounded-2xl flex items-center justify-center">
@@ -128,7 +142,6 @@ function SignUpContent() {
             <p className="text-slate-600">Veterinary Clinic Management</p>
           </div>
 
-          {/* Verification Form */}
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Verify Your Email</h2>
             <p className="text-slate-600 mb-6">
@@ -184,7 +197,6 @@ function SignUpContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-4">
             <div className="w-16 h-16 bg-[#C00000] rounded-2xl flex items-center justify-center">
@@ -195,7 +207,6 @@ function SignUpContent() {
           <p className="text-slate-600">Veterinary Clinic Management</p>
         </div>
 
-        {/* Signup Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-200">
           <h2 className="text-2xl font-bold text-slate-900 mb-6">Create Your Account</h2>
 
@@ -206,10 +217,9 @@ function SignUpContent() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Clerk CAPTCHA Container */}
-            <div id="clerk-captcha"></div>
+            {/* Clerk CAPTCHA - required for bot protection */}
+            <div id="clerk-captcha" className="flex justify-center"></div>
 
-            {/* Clinic Name - Only show for NEW clinic signups */}
             {!isInviteSignup && (
               <div className="space-y-2">
                 <Label htmlFor="clinicName" className="text-slate-700 font-semibold flex items-center gap-2">
@@ -228,17 +238,15 @@ function SignUpContent() {
               </div>
             )}
 
-            {/* Show message for invite signups */}
             {isInviteSignup && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-900">
                   <strong>📧 Joining existing clinic</strong><br/>
-                  You're creating an account to join an existing clinic. After verification, you'll complete the invite acceptance.
+                  You're creating an account to join an existing clinic.
                 </p>
               </div>
             )}
 
-            {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email" className="text-slate-700 font-semibold flex items-center gap-2">
                 <Mail className="h-4 w-4" />
@@ -255,7 +263,6 @@ function SignUpContent() {
               />
             </div>
 
-            {/* Password */}
             <div className="space-y-2">
               <Label htmlFor="password" className="text-slate-700 font-semibold flex items-center gap-2">
                 <Lock className="h-4 w-4" />
@@ -276,43 +283,31 @@ function SignUpContent() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5" />
-                  ) : (
-                    <Eye className="h-5 w-5" />
-                  )}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
-              <p className="text-xs text-slate-500">
-                Must be at least 8 characters
-              </p>
+              <p className="text-xs text-slate-500">Must be at least 8 characters</p>
             </div>
 
-            {/* Submit Button */}
             <Button
               type="submit"
-              disabled={loading}
+              disabled={loading || !isLoaded}
               className="w-full h-12 bg-[#C00000] hover:bg-[#A00000] text-white text-lg font-semibold"
             >
               {loading ? "Creating Account..." : "Sign Up"}
             </Button>
           </form>
 
-          {/* Sign In Link */}
           <div className="mt-6 text-center">
             <p className="text-slate-600">
               Already have an account?{" "}
-              <Link
-                href="/sign-in"
-                className="text-[#C00000] hover:underline font-semibold"
-              >
+              <Link href="/sign-in" className="text-[#C00000] hover:underline font-semibold">
                 Sign In
               </Link>
             </p>
           </div>
         </div>
 
-        {/* Footer */}
         <div className="text-center mt-6 text-sm text-slate-500">
           © 2026 Dr. Paw. All rights reserved.
         </div>
