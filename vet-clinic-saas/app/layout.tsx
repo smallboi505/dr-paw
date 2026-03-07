@@ -16,7 +16,40 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Dr. Paw - Veterinary Clinic Management",
-  description: "Professional veterinary clinic management system",
+  description: "Dr. Paw helps veterinary clinics go paperless. Manage pets, owners, appointments, medical records, and staff — all in one place.",
+  keywords: ["veterinary clinic software", "vet management system", "pet records", "veterinary SaaS", "clinic management"],
+  authors: [{ name: "Dr. Paw" }],
+  creator: "Dr. Paw",
+  metadataBase: new URL("https://drpawgh.com"),
+  openGraph: {
+    type: "website",
+    url: "https://drpawgh.com",
+    title: "Dr. Paw - Veterinary Clinic Management",
+    description: "Dr. Paw helps veterinary clinics go paperless. Manage pets, owners, appointments, medical records, and staff — all in one place.",
+    siteName: "Dr. Paw",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Dr. Paw - Veterinary Clinic Management",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Dr. Paw - Veterinary Clinic Management",
+    description: "Dr. Paw helps veterinary clinics go paperless. Manage pets, owners, appointments, medical records, and staff — all in one place.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
