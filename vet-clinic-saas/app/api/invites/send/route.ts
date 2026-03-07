@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     if (resend) {
       try {
         await resend.emails.send({
-          from: 'Dr. Paw <onboarding@drpaw.app>', // Replace with your verified domain
+          from: 'Dr. Paw <noreply@drpawgh.com>',
           to: email,
           subject: `You're invited to join ${clinic?.name || 'our clinic'}!`,
           html: getInviteEmailHtml({
