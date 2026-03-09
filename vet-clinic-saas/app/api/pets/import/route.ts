@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentClinicId } from "@/lib/auth";
-import { getNextPetId, validatePetIdFormat } from "@/lib/pet-id";
+import { getNextPetId } from "@/lib/pet-id";
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +30,20 @@ export async function POST(request: NextRequest) {
 
     for (const petData of pets) {
       try {
-        // Find or create owner - match by phone if available, otherwise by name
+        // Determine pet ID
+        let petIdNumber = "";
+
+        if (petData.id && petData.id.trim()) {
+          petIdNumber = petData.id.trim();
+        } else if (petIdMode === "AUTO") {
+          const petCount = await prisma.pet.count({ where: { clinicId } });
+          petIdNumber = getNextPetId(petCount, petIdFormat);
+        } else {
+          errors.push(`Pet "${petData.name}": No ID — skipped`);
+          continue;
+        }
+
+        // Find or create owner - phone first, then name
         let owner = null;
 
         if (petData.ownerPhone) {
@@ -39,72 +52,36 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // If no phone match, try by name
         if (!owner && petData.ownerName) {
           owner = await prisma.owner.findFirst({
             where: { clinicId, name: petData.ownerName },
           });
         }
 
-        // Create owner if still not found
         if (!owner) {
           const ownerCount = await prisma.owner.count({ where: { clinicId } });
-          const ownerIdNumber = `OWN${String(ownerCount + 1).padStart(4, '0')}`;
-
+          const ownerIdNumber = `OWN${String(ownerCount + 1).padStart(4, "0")}`;
           owner = await prisma.owner.create({
             data: {
               idNumber: ownerIdNumber,
-              name: petData.ownerName,
+              name: petData.ownerName || "Unknown",
               phone: petData.ownerPhone || null,
               address: petData.ownerAddress || null,
-              clinicId,
+              clinic: { connect: { id: clinicId } },
             },
           });
         }
 
-        // Determine pet ID
-        let petIdNumber = "";
-
-        if (petData.id && petData.id.trim()) {
-          petIdNumber = petData.id.trim();
-
-          // Only validate format in MANUAL mode
-          if (petIdMode === "MANUAL" && !validatePetIdFormat(petIdNumber, petIdFormat)) {
-            errors.push(`Pet "${petData.name}": ID "${petIdNumber}" doesn't match format ${petIdFormat}`);
-            continue;
-          }
-
-          // Check for duplicate - skip instead of error to allow re-imports
-          const existingPet = await prisma.pet.findFirst({
-            where: { idNumber: petIdNumber, clinicId },
-          });
-
-          if (existingPet) {
-            errors.push(`Pet "${petData.name}": ID "${petIdNumber}" already exists — skipped`);
-            continue;
-          }
-        } else {
-          // No ID provided
-          if (petIdMode === "MANUAL") {
-            errors.push(`Pet "${petData.name}": ID required in manual mode`);
-            continue;
-          }
-
-          // Auto-generate
-          const petCount = await prisma.pet.count({ where: { clinicId } });
-          petIdNumber = getNextPetId(petCount, petIdFormat);
-        }
-
-        // Create pet
+        // Create pet — no duplicate check, no format check, just import
         await prisma.pet.create({
           data: {
             idNumber: petIdNumber,
-            name: petData.name,
-            species: petData.species,
+            name: petData.name || "Unknown",
+            species: petData.species || "Other",
             breed: petData.breed || null,
             sex: petData.sex || null,
             color: petData.color || null,
-            status: 'ACTIVE',
+            status: "ACTIVE",
             ownerId: owner.id,
             clinicId,
           },

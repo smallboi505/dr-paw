@@ -36,8 +36,8 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* DESKTOP SIDEBAR - Always visible on large screens */}
-      <div className="hidden lg:block fixed left-0 top-0 h-screen w-64 bg-[#C00000] z-30">
+      {/* DESKTOP SIDEBAR */}
+      <div className="hidden lg:flex lg:flex-col fixed left-0 top-0 h-screen w-64 bg-[#C00000] z-30">
         <SidebarContent 
           navItems={navItems} 
           isActive={isActive} 
@@ -46,25 +46,20 @@ export default function Sidebar() {
         />
       </div>
 
-      {/* MOBILE SIDEBAR - Slides in from left */}
+      {/* MOBILE SIDEBAR */}
       {isOpen && (
         <>
-          {/* Dark backdrop overlay */}
           <div 
             className="lg:hidden fixed inset-0 bg-black/50 z-40 animate-fadeIn"
             onClick={closeMenu}
           />
-          
-          {/* Sidebar drawer */}
-          <div className="lg:hidden fixed left-0 top-0 h-screen w-64 bg-[#C00000] z-50 shadow-2xl animate-slideInLeft">
-            {/* Close X button */}
+          <div className="lg:hidden fixed left-0 top-0 h-screen w-64 bg-[#C00000] z-50 shadow-2xl animate-slideInLeft flex flex-col">
             <button
               onClick={closeMenu}
               className="absolute top-4 right-4 p-2 text-white hover:bg-red-700 rounded-lg transition-colors"
             >
               <X className="h-6 w-6" />
             </button>
-
             <SidebarContent 
               navItems={navItems} 
               isActive={isActive} 
@@ -78,7 +73,6 @@ export default function Sidebar() {
   );
 }
 
-// Shared sidebar content component (used for both mobile and desktop)
 function SidebarContent({ 
   navItems, 
   isActive, 
@@ -91,9 +85,9 @@ function SidebarContent({
   onLinkClick: () => void;
 }) {
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="p-6 border-b border-red-700">
+      <div className="px-6 py-5 border-b border-red-700 flex-shrink-0">
         <Link href="/" className="flex items-center gap-2 text-white" onClick={onLinkClick}>
           <span className="text-2xl font-bold">Dr. P</span>
           <span className="text-2xl">🐾</span>
@@ -101,7 +95,7 @@ function SidebarContent({
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 py-6 overflow-y-auto">
+      <nav className="py-4 flex-shrink-0">
         {navItems.map((item) => (
           <Link
             key={item.href}
@@ -113,22 +107,25 @@ function SidebarContent({
                 : "hover:bg-red-700"
             }`}
           >
-            <item.icon className="h-5 w-5" />
+            <item.icon className="h-5 w-5 flex-shrink-0" />
             <span className="font-medium">{item.label}</span>
           </Link>
         ))}
       </nav>
 
+      {/* Spacer */}
+      <div className="flex-1" />
+
       {/* Logout Button */}
-      <div className="p-6 border-t border-red-700">
+      <div className="px-4 py-5 border-t border-red-700 flex-shrink-0">
         <button 
           onClick={() => {
             onLinkClick();
             signOut({ redirectUrl: "/sign-in" });
           }}
-          className="flex items-center gap-3 px-6 py-3 text-white hover:bg-red-700 rounded-lg transition-colors w-full"
+          className="flex items-center gap-3 px-4 py-3 text-white hover:bg-red-700 rounded-lg transition-colors w-full"
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-5 w-5 flex-shrink-0" />
           <span className="font-medium">LOGOUT</span>
         </button>
       </div>
