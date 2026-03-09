@@ -22,46 +22,28 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
   const [editingRow, setEditingRow] = useState<number | null>(null);
   const [editedData, setEditedData] = useState<CSVRow>({});
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === 'text/csv') {
-      setFile(selectedFile);
-      parseFile(selectedFile);
-    } else {
-      alert('Please select a valid CSV file');
-    }
-  };
-
-  const parseFile = async (file: File) => {
-    setPreviewing(true);
-    
-    const text = await file.text();
-    const { headers, rows } = parseCSV(text);
-
-    // Validate rows (no normalization - preserve exact values)
+  const validateRows = (rows: CSVRow[]) => {
     const validationErrors: ValidationError[] = [];
     const valid: CSVRow[] = [];
 
     rows.forEach((row, index) => {
       const rowErrors: string[] = [];
 
-      // Required fields
+      // Only name, species, and ownerName are required
       if (!isRequired(row.name)) rowErrors.push('name');
       if (!isRequired(row.species)) rowErrors.push('species');
-      if (!isRequired(row.sex)) rowErrors.push('sex');
       if (!isRequired(row.ownerName)) rowErrors.push('ownerName');
-      if (!isRequired(row.ownerPhone)) rowErrors.push('ownerPhone');
 
-      // Phone validation
+      // Phone validation (only if provided)
       if (row.ownerPhone && !isValidPhone(row.ownerPhone)) {
         validationErrors.push({
-          row: index + 2, // +2 because index 0 is row 2 (after header)
+          row: index + 2,
           field: 'ownerPhone',
           message: 'Invalid phone format (must be 10 digits starting with 0)',
         });
       }
 
-      // Email validation (if provided)
+      // Email validation (only if provided)
       if (row.ownerEmail && !isValidEmail(row.ownerEmail)) {
         validationErrors.push({
           row: index + 2,
@@ -80,7 +62,7 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
         });
       }
 
-      // Sex validation - accept M, Male, F, Female (preserve exact value)
+      // Sex validation (only if provided)
       const validSexValues = ['M', 'Male', 'F', 'Female', 'm', 'male', 'f', 'female'];
       if (row.sex && !validSexValues.includes(row.sex)) {
         validationErrors.push({
@@ -99,13 +81,30 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
         });
       });
 
-      // If no errors, add to valid rows
       if (rowErrors.length === 0) {
         valid.push(row);
       }
     });
 
-    setPreviewData(rows.slice(0, 10)); // Show first 10 rows
+    return { validationErrors, valid };
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile && selectedFile.type === 'text/csv') {
+      setFile(selectedFile);
+      parseFile(selectedFile);
+    } else {
+      alert('Please select a valid CSV file');
+    }
+  };
+
+  const parseFile = async (file: File) => {
+    setPreviewing(true);
+    const text = await file.text();
+    const { rows } = parseCSV(text);
+    const { validationErrors, valid } = validateRows(rows);
+    setPreviewData(rows.slice(0, 10));
     setValidRows(valid);
     setErrors(validationErrors);
     setPreviewing(false);
@@ -129,7 +128,12 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
       const result = await response.json();
 
       if (response.ok) {
-        alert(`Successfully imported ${result.imported} pets!`);
+        let message = `Successfully imported ${result.imported} pets!`;
+        if (result.errors && result.errors.length > 0) {
+          message += `\n\nSkipped ${result.errors.length} pets:\n${result.errors.slice(0, 5).join('\n')}`;
+          if (result.errors.length > 5) message += `\n...and ${result.errors.length - 5} more`;
+        }
+        alert(message);
         onSuccess();
         handleClose();
       } else {
@@ -144,32 +148,8 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
   };
 
   const handleDownloadTemplate = () => {
-    const headers = [
-      'id',
-      'name',
-      'species',
-      'breed',
-      'sex',
-      'color',
-      'ownerName',
-      'ownerPhone',
-      'ownerEmail',
-      'ownerAddress',
-    ];
-
-    const example = [
-      'MS/VC/0001',
-      'Buddy',
-      'Dog',
-      'Golden Retriever',
-      'M',
-      'Golden',
-      'John Doe',
-      '0201234567',
-      'john@example.com',
-      'Accra, Ghana',
-    ];
-
+    const headers = ['id', 'name', 'species', 'breed', 'sex', 'color', 'ownerName', 'ownerPhone', 'ownerEmail', 'ownerAddress'];
+    const example = ['MS/VC/0001', 'Buddy', 'Dog', 'Golden Retriever', 'M', 'Golden', 'John Doe', '0201234567', 'john@example.com', 'Accra, Ghana'];
     downloadTemplate(headers, 'pets-import-template.csv', example);
   };
 
@@ -190,55 +170,10 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
 
   const handleSaveEdit = () => {
     if (editingRow === null) return;
-
-    // Update the row (no normalization - preserve exact value)
     const updatedPreview = [...previewData];
     updatedPreview[editingRow] = editedData;
     setPreviewData(updatedPreview);
-
-    // Re-validate all rows
-    const validationErrors: ValidationError[] = [];
-    const valid: CSVRow[] = [];
-
-    updatedPreview.forEach((row, index) => {
-      const rowErrors: string[] = [];
-
-      if (!isRequired(row.name)) rowErrors.push('name');
-      if (!isRequired(row.species)) rowErrors.push('species');
-      if (!isRequired(row.sex)) rowErrors.push('sex');
-      if (!isRequired(row.ownerName)) rowErrors.push('ownerName');
-      if (!isRequired(row.ownerPhone)) rowErrors.push('ownerPhone');
-
-      if (row.ownerPhone && !isValidPhone(row.ownerPhone)) {
-        validationErrors.push({
-          row: index + 2,
-          field: 'ownerPhone',
-          message: 'Invalid phone format',
-        });
-      }
-
-      const validSexValues = ['M', 'Male', 'F', 'Female', 'm', 'male', 'f', 'female'];
-      if (row.sex && !validSexValues.includes(row.sex)) {
-        validationErrors.push({
-          row: index + 2,
-          field: 'sex',
-          message: 'Invalid sex (must be M, Male, F, or Female)',
-        });
-      }
-
-      rowErrors.forEach(field => {
-        validationErrors.push({
-          row: index + 2,
-          field,
-          message: 'Required field is missing',
-        });
-      });
-
-      if (rowErrors.length === 0) {
-        valid.push(row);
-      }
-    });
-
+    const { validationErrors, valid } = validateRows(updatedPreview);
     setValidRows(valid);
     setErrors(validationErrors);
     setEditingRow(null);
@@ -264,17 +199,9 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
               <Download className="h-5 w-5 text-blue-600 mt-0.5" />
               <div className="flex-1">
                 <h3 className="font-semibold text-blue-900 mb-1">Need a template?</h3>
-                <p className="text-sm text-blue-700 mb-3">
-                  Download our CSV template with an example row to get started.
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleDownloadTemplate}
-                  className="text-blue-600 border-blue-300 hover:bg-blue-100"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download Template
+                <p className="text-sm text-blue-700 mb-3">Download our CSV template with an example row to get started.</p>
+                <Button size="sm" variant="outline" onClick={handleDownloadTemplate} className="text-blue-600 border-blue-300 hover:bg-blue-100">
+                  <Download className="h-4 w-4 mr-2" />Download Template
                 </Button>
               </div>
             </div>
@@ -284,26 +211,12 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
           {!file ? (
             <div className="border-2 border-dashed border-slate-300 rounded-lg p-12 text-center hover:border-[#C00000] transition-colors">
               <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                Upload CSV File
-              </h3>
-              <p className="text-sm text-slate-600 mb-4">
-                Select a CSV file with pet data to import
-              </p>
-              <input
-                id="file-upload"
-                type="file"
-                accept=".csv"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">Upload CSV File</h3>
+              <p className="text-sm text-slate-600 mb-4">Select a CSV file with pet data to import</p>
+              <input id="file-upload" type="file" accept=".csv" onChange={handleFileSelect} className="hidden" />
               <label htmlFor="file-upload" className="cursor-pointer">
-                <Button className="bg-[#C00000] hover:bg-[#A00000]" type="button" onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById('file-upload')?.click();
-                }}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Choose File
+                <Button className="bg-[#C00000] hover:bg-[#A00000]" type="button" onClick={(e) => { e.preventDefault(); document.getElementById('file-upload')?.click(); }}>
+                  <Upload className="h-4 w-4 mr-2" />Choose File
                 </Button>
               </label>
             </div>
@@ -317,18 +230,11 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">{file.name}</p>
-                    <p className="text-sm text-slate-600">
-                      {validRows.length} valid rows, {errors.length} errors
-                    </p>
+                    <p className="text-sm text-slate-600">{validRows.length} valid rows, {errors.length} errors</p>
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setFile(null)}
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  Remove
+                <Button size="sm" variant="outline" onClick={() => setFile(null)}>
+                  <X className="h-4 w-4 mr-2" />Remove
                 </Button>
               </div>
 
@@ -341,7 +247,6 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
                   </div>
                   <p className="text-3xl font-bold text-green-700">{validRows.length}</p>
                 </div>
-
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertCircle className="h-5 w-5 text-red-600" />
@@ -361,11 +266,7 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
                         <span className="font-semibold">Row {error.row}:</span> {error.field} - {error.message}
                       </div>
                     ))}
-                    {errors.length > 10 && (
-                      <p className="text-sm text-red-600 italic">
-                        ...and {errors.length - 10} more errors
-                      </p>
-                    )}
+                    {errors.length > 10 && <p className="text-sm text-red-600 italic">...and {errors.length - 10} more errors</p>}
                   </div>
                 </div>
               )}
@@ -390,32 +291,15 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
                       {previewData.map((row, i) => {
                         const hasError = errors.some(e => e.row === i + 2);
                         const isEditing = editingRow === i;
-                        
                         return (
-                          <tr 
-                            key={i} 
-                            className={`border-b border-slate-100 ${hasError ? 'bg-red-50' : 'hover:bg-slate-50'} ${isEditing ? 'bg-blue-50' : ''}`}
-                          >
+                          <tr key={i} className={`border-b border-slate-100 ${hasError ? 'bg-red-50' : 'hover:bg-slate-50'} ${isEditing ? 'bg-blue-50' : ''}`}>
                             <td className="py-2 px-3 font-semibold text-slate-900">{i + 2}</td>
                             <td className="py-2 px-3 text-slate-900">
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editedData.name || ''}
-                                  onChange={(e) => setEditedData({ ...editedData, name: e.target.value })}
-                                  className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900"
-                                />
-                              ) : (
-                                row.name
-                              )}
+                              {isEditing ? <input type="text" value={editedData.name || ''} onChange={(e) => setEditedData({ ...editedData, name: e.target.value })} className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900" /> : row.name}
                             </td>
                             <td className="py-2 px-3 text-slate-900">
                               {isEditing ? (
-                                <select
-                                  value={editedData.species || ''}
-                                  onChange={(e) => setEditedData({ ...editedData, species: e.target.value })}
-                                  className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900"
-                                >
+                                <select value={editedData.species || ''} onChange={(e) => setEditedData({ ...editedData, species: e.target.value })} className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900">
                                   <option value="">Select</option>
                                   <option value="Dog">Dog</option>
                                   <option value="Cat">Cat</option>
@@ -423,80 +307,33 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
                                   <option value="Rabbit">Rabbit</option>
                                   <option value="Other">Other</option>
                                 </select>
-                              ) : (
-                                row.species
-                              )}
+                              ) : row.species}
                             </td>
                             <td className="py-2 px-3 text-slate-900">
                               {isEditing ? (
-                                <select
-                                  value={editedData.sex || ''}
-                                  onChange={(e) => setEditedData({ ...editedData, sex: e.target.value })}
-                                  className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900"
-                                >
+                                <select value={editedData.sex || ''} onChange={(e) => setEditedData({ ...editedData, sex: e.target.value })} className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900">
                                   <option value="">Select</option>
                                   <option value="M">M</option>
                                   <option value="Male">Male</option>
                                   <option value="F">F</option>
                                   <option value="Female">Female</option>
                                 </select>
-                              ) : (
-                                row.sex
-                              )}
+                              ) : row.sex}
                             </td>
                             <td className="py-2 px-3 text-slate-900">
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editedData.ownerName || ''}
-                                  onChange={(e) => setEditedData({ ...editedData, ownerName: e.target.value })}
-                                  className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900"
-                                />
-                              ) : (
-                                row.ownerName
-                              )}
+                              {isEditing ? <input type="text" value={editedData.ownerName || ''} onChange={(e) => setEditedData({ ...editedData, ownerName: e.target.value })} className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900" /> : row.ownerName}
                             </td>
                             <td className="py-2 px-3 text-slate-900">
-                              {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editedData.ownerPhone || ''}
-                                  onChange={(e) => setEditedData({ ...editedData, ownerPhone: e.target.value })}
-                                  className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900"
-                                  placeholder="0201234567"
-                                />
-                              ) : (
-                                row.ownerPhone
-                              )}
+                              {isEditing ? <input type="text" value={editedData.ownerPhone || ''} onChange={(e) => setEditedData({ ...editedData, ownerPhone: e.target.value })} className="w-full px-2 py-1 border border-slate-300 rounded text-slate-900" placeholder="0201234567" /> : row.ownerPhone}
                             </td>
                             <td className="py-2 px-3">
                               {isEditing ? (
                                 <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    onClick={handleSaveEdit}
-                                    className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 text-xs"
-                                  >
-                                    Save
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={handleCancelEdit}
-                                    className="px-2 py-1 text-xs"
-                                  >
-                                    Cancel
-                                  </Button>
+                                  <Button size="sm" onClick={handleSaveEdit} className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 text-xs">Save</Button>
+                                  <Button size="sm" variant="outline" onClick={handleCancelEdit} className="px-2 py-1 text-xs">Cancel</Button>
                                 </div>
                               ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleEditRow(i)}
-                                  className="px-2 py-1 text-xs"
-                                >
-                                  Edit
-                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => handleEditRow(i)} className="px-2 py-1 text-xs">Edit</Button>
                               )}
                             </td>
                           </tr>
@@ -509,14 +346,8 @@ export default function ImportPetsDialog({ open, onClose, onSuccess }: ImportPet
 
               {/* Actions */}
               <div className="flex gap-3 justify-end">
-                <Button variant="outline" onClick={handleClose}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleImport}
-                  disabled={importing || validRows.length === 0}
-                  className="bg-[#C00000] hover:bg-[#A00000]"
-                >
+                <Button variant="outline" onClick={handleClose}>Cancel</Button>
+                <Button onClick={handleImport} disabled={importing || validRows.length === 0} className="bg-[#C00000] hover:bg-[#A00000]">
                   {importing ? 'Importing...' : `Import ${validRows.length} Pets`}
                 </Button>
               </div>

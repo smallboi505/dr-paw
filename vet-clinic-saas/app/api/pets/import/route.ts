@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get clinic to access petIdMode and petIdFormat
     const clinic = await prisma.clinic.findUnique({
       where: { id: clinicId },
       select: { petIdMode: true, petIdFormat: true },
@@ -23,28 +22,32 @@ export async function POST(request: NextRequest) {
     const { pets } = body;
 
     if (!pets || !Array.isArray(pets) || pets.length === 0) {
-      return NextResponse.json(
-        { error: "No valid pets data provided" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "No valid pets data provided" }, { status: 400 });
     }
 
     let imported = 0;
     const errors: string[] = [];
 
-    // Process each pet
     for (const petData of pets) {
       try {
-        // Find or create owner
-        let owner = await prisma.owner.findFirst({
-          where: {
-            clinicId,
-            phone: petData.ownerPhone,
-          },
-        });
+        // Find or create owner - match by phone if available, otherwise by name
+        let owner = null;
 
+        if (petData.ownerPhone) {
+          owner = await prisma.owner.findFirst({
+            where: { clinicId, phone: petData.ownerPhone },
+          });
+        }
+
+        // If no phone match, try by name
+        if (!owner && petData.ownerName) {
+          owner = await prisma.owner.findFirst({
+            where: { clinicId, name: petData.ownerName },
+          });
+        }
+
+        // Create owner if still not found
         if (!owner) {
-          // Generate owner ID number
           const ownerCount = await prisma.owner.count({ where: { clinicId } });
           const ownerIdNumber = `OWN${String(ownerCount + 1).padStart(4, '0')}`;
 
@@ -52,34 +55,32 @@ export async function POST(request: NextRequest) {
             data: {
               idNumber: ownerIdNumber,
               name: petData.ownerName,
-              phone: petData.ownerPhone,
+              phone: petData.ownerPhone || null,
               address: petData.ownerAddress || null,
               clinicId,
             },
           });
         }
 
-        // Generate pet ID number (use provided ID or auto-generate)
-        const petCount = await prisma.pet.count({ where: { clinicId } });
+        // Determine pet ID
         let petIdNumber = "";
-        
+
         if (petData.id && petData.id.trim()) {
-          // ID provided in CSV
           petIdNumber = petData.id.trim();
-          
-          // Validate format
-          if (!validatePetIdFormat(petIdNumber, petIdFormat)) {
+
+          // Only validate format in MANUAL mode
+          if (petIdMode === "MANUAL" && !validatePetIdFormat(petIdNumber, petIdFormat)) {
             errors.push(`Pet "${petData.name}": ID "${petIdNumber}" doesn't match format ${petIdFormat}`);
             continue;
           }
-          
-          // Check if already exists
-          const existingPet = await prisma.pet.findUnique({
-            where: { idNumber: petIdNumber },
+
+          // Check for duplicate - skip instead of error to allow re-imports
+          const existingPet = await prisma.pet.findFirst({
+            where: { idNumber: petIdNumber, clinicId },
           });
-          
+
           if (existingPet) {
-            errors.push(`Pet "${petData.name}": ID "${petIdNumber}" already exists`);
+            errors.push(`Pet "${petData.name}": ID "${petIdNumber}" already exists — skipped`);
             continue;
           }
         } else {
@@ -88,8 +89,9 @@ export async function POST(request: NextRequest) {
             errors.push(`Pet "${petData.name}": ID required in manual mode`);
             continue;
           }
-          
-          // Auto-generate ID
+
+          // Auto-generate
+          const petCount = await prisma.pet.count({ where: { clinicId } });
           petIdNumber = getNextPetId(petCount, petIdFormat);
         }
 
@@ -100,7 +102,7 @@ export async function POST(request: NextRequest) {
             name: petData.name,
             species: petData.species,
             breed: petData.breed || null,
-            sex: petData.sex,
+            sex: petData.sex || null,
             color: petData.color || null,
             status: 'ACTIVE',
             ownerId: owner.id,
@@ -111,7 +113,7 @@ export async function POST(request: NextRequest) {
         imported++;
       } catch (error) {
         console.error(`Error importing pet ${petData.name}:`, error);
-        errors.push(`Failed to import ${petData.name}`);
+        errors.push(`Failed to import "${petData.name}"`);
       }
     }
 
@@ -123,9 +125,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Import pets error:", error);
-    return NextResponse.json(
-      { error: "Failed to import pets" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to import pets" }, { status: 500 });
   }
 }
