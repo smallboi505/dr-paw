@@ -16,45 +16,46 @@ export default function UserProfileButton() {
 
   useEffect(() => {
     if (!user) return;
-
-    // Fetch user's clinic info
     fetch("/api/user/profile")
       .then((res) => res.json())
       .then((data) => setInfo(data))
       .catch(() => {});
   }, [user]);
 
-  // Format display name: "Abdul - Top Vet" or "Abdul Shakur - Top Vet"
   const getDisplayName = () => {
     if (!info) return null;
-    
     const firstName = info.firstName || user?.firstName || "User";
     const clinicName = info.clinicName || "Clinic";
-    
-    return `${firstName} - ${clinicName}`;
+    const truncatedClinic = clinicName.length > 15 ? clinicName.slice(0, 15) + "…" : clinicName;
+    return `${firstName} - ${truncatedClinic}`;
+  };
+
+  const getRole = () => {
+    if (!info) return null;
+    switch (info.role) {
+      case "ADMIN": return "Administrator";
+      case "VET": return "Veterinarian";
+      case "RECEPTION": return "Receptionist";
+      default: return "Staff";
+    }
   };
 
   return (
     <div className="flex items-center gap-3">
-      {/* Display Name */}
       {info && (
         <div className="text-right hidden md:block">
-          <p className="text-sm font-semibold text-slate-900">
+          <p className="text-sm font-semibold text-slate-900 leading-tight">
             {getDisplayName()}
           </p>
-          <p className="text-xs text-slate-500">
-            {info.role === "ADMIN" ? "Administrator" : 
-             info.role === "VET" ? "Veterinarian" :
-             info.role === "RECEPTION" ? "Receptionist" : "Staff"}
+          <p className="text-xs text-slate-500 leading-tight">
+            {getRole()}
           </p>
         </div>
       )}
-
-      {/* Clerk User Button */}
       <UserButton
         appearance={{
           elements: {
-            avatarBox: "w-10 h-10",
+            avatarBox: "w-9 h-9",
             userButtonPopoverCard: "shadow-xl",
           },
         }}
