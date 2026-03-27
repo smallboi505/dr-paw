@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSignIn } from "@clerk/nextjs";
+import { useState, Suspense, useEffect } from "react";
+import { useSignIn, useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 
 function SignInContent() {
   const { isLoaded, signIn, setActive } = useSignIn();
+  const { isSignedIn } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -26,6 +27,13 @@ function SignInContent() {
 
   const redirectUrl = searchParams.get("redirect_url") || "";
   const [formData, setFormData] = useState({ email: "", password: "" });
+
+  // If already signed in, redirect to dashboard
+  useEffect(() => {
+    if (isSignedIn) {
+      router.push("/select-clinic");
+    }
+  }, [isSignedIn]);
 
   const completeSignIn = async (sessionId: string | null) => {
     await setActive!({ session: sessionId });
@@ -158,6 +166,11 @@ function SignInContent() {
     </div>
   );
 
+  // Show loading while redirecting if already signed in
+  if (isSignedIn) {
+    return pageShell(<div className="text-center py-8 text-slate-500">Redirecting...</div>);
+  }
+
   if (step === "forgot") {
     return pageShell(
       <>
@@ -238,7 +251,6 @@ function SignInContent() {
       <h2 className="text-2xl font-bold text-slate-900 mb-6">Welcome Back</h2>
       {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg"><p className="text-red-600 text-sm">{error}</p></div>}
 
-      {/* Google Sign In */}
       <Button
         type="button"
         variant="outline"
@@ -255,7 +267,6 @@ function SignInContent() {
         {googleLoading ? "Redirecting..." : "Continue with Google"}
       </Button>
 
-      {/* Divider */}
       <div className="flex items-center gap-3 mb-6">
         <div className="flex-1 h-px bg-slate-200" />
         <span className="text-sm text-slate-400">or</span>
