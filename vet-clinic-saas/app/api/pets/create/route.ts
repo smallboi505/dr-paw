@@ -70,9 +70,9 @@ export async function POST(request: NextRequest) {
 
       // Generate or validate owner ID
       if (petIdMode === "AUTO") {
-        // Auto-generate owner ID
-        const ownerCount = await prisma.owner.count({ where: { clinicId } });
-        baseIdNumber = getNextPetId(ownerCount, petIdFormat);
+        // Auto-generate owner ID based on pet count (so owner and pet share the same ID)
+        const clinicPetCount = await prisma.pet.count({ where: { clinicId } });
+        baseIdNumber = getNextPetId(clinicPetCount, petIdFormat);
       } else {
         // Manual mode - use provided ID
         if (!ownerData.idNumber) {
@@ -92,9 +92,9 @@ export async function POST(request: NextRequest) {
 
         baseIdNumber = ownerData.idNumber;
 
-        // Check if owner ID already exists
-        const existingOwner = await prisma.owner.findUnique({
-          where: { idNumber: baseIdNumber },
+        // Check if owner ID already exists in this clinic
+        const existingOwner = await prisma.owner.findFirst({
+          where: { idNumber: baseIdNumber, clinicId },
         });
 
         if (existingOwner) {
@@ -140,7 +140,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate smart pet ID
     // Check how many pets this owner already has
     const existingPetsCount = await prisma.pet.count({
       where: { ownerId: finalOwnerId },
