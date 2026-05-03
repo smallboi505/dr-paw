@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentClinicId } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,6 +13,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const clinicId = await getCurrentClinicId();
+    if (!clinicId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     let exists = false;
 
     if (type === "pet") {
@@ -20,8 +26,8 @@ export async function POST(request: NextRequest) {
       });
       exists = !!pet;
     } else if (type === "owner") {
-      const owner = await prisma.owner.findUnique({
-        where: { idNumber },
+      const owner = await prisma.owner.findFirst({
+        where: { idNumber, clinicId },
       });
       exists = !!owner;
     }
