@@ -50,14 +50,13 @@ model User {
   visits       Visit[]
   notifications Notification[]
 
-
   @@index([clinicId])
   @@map("users")
 }
 
 model Owner {
   id        String   @id @default(cuid())
-  idNumber  String   @unique
+  idNumber  String
   name      String
   phone     String
   address   String?
@@ -69,6 +68,7 @@ model Owner {
   clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
   pets   Pet[]
 
+  @@unique([idNumber, clinicId])
   @@index([clinicId])
   @@index([phone])
   @@map("owners")
