@@ -64,7 +64,7 @@ export default function SelectClinicPage() {
       });
 
       if (res.ok) {
-        router.push("/");
+        router.push("/dashboard");
       } else {
         alert("Failed to select clinic");
         setSelecting(null);

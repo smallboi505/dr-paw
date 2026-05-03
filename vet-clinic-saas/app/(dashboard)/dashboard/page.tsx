@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import DashboardClient from "./dashboard-client";
+import DashboardClient from "../dashboard-client";
 
 export default async function DashboardPage() {
   // SERVER COMPONENT - Checks database for onboarding status
