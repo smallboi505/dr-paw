@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { MapPin, User, Plus, Loader2, LogOut } from "lucide-react";
+import { MapPin, Plus, Loader2, LogOut } from "lucide-react";
 import { useClerk } from "@clerk/nextjs";
 
 interface ClinicMembership {
@@ -22,6 +22,7 @@ export default function SelectClinicPage() {
   const [clinics, setClinics] = useState<ClinicMembership[]>([]);
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState<string | null>(null);
+  const hasSelected = useRef(false);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -30,20 +31,17 @@ export default function SelectClinicPage() {
       return;
     }
 
-    // Fetch all clinics this user belongs to
     fetch("/api/user/clinics")
       .then((res) => res.json())
       .then((data) => {
         const userClinics = data.clinics || [];
 
         if (userClinics.length === 0) {
-          // No clinics → go to onboarding
           router.push("/onboarding");
-        } else if (userClinics.length === 1) {
-          // Only one clinic → go straight to dashboard
+        } else if (userClinics.length === 1 && !hasSelected.current) {
+          hasSelected.current = true;
           handleSelectClinic(userClinics[0].clinicId);
         } else {
-          // Multiple clinics → show selector
           setClinics(userClinics);
           setLoading(false);
         }
@@ -54,9 +52,9 @@ export default function SelectClinicPage() {
   }, [isLoaded, user]);
 
   const handleSelectClinic = async (clinicId: string) => {
+    if (selecting) return;
     setSelecting(clinicId);
     try {
-      // Set active clinic in session
       const res = await fetch("/api/user/select-clinic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,10 +66,12 @@ export default function SelectClinicPage() {
       } else {
         alert("Failed to select clinic");
         setSelecting(null);
+        hasSelected.current = false;
       }
     } catch {
       alert("Failed to select clinic");
       setSelecting(null);
+      hasSelected.current = false;
     }
   };
 
@@ -133,12 +133,9 @@ export default function SelectClinicPage() {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  {/* Clinic Icon */}
                   <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-pink-100 rounded-xl flex items-center justify-center text-2xl border border-red-200">
                     🏥
                   </div>
-
-                  {/* Clinic Info */}
                   <div>
                     <h3 className="font-bold text-slate-900 text-lg group-hover:text-[#C00000] transition-colors">
                       {clinic.clinicName}
@@ -156,8 +153,6 @@ export default function SelectClinicPage() {
                     </div>
                   </div>
                 </div>
-
-                {/* Arrow / Loading */}
                 <div className="text-slate-300 group-hover:text-[#C00000] transition-colors">
                   {selecting === clinic.clinicId ? (
                     <Loader2 className="h-6 w-6 animate-spin" />
