@@ -15,7 +15,11 @@ model Clinic {
   timezone  String?
   logo      String?
   petIdMode      String?  @default("MANUAL")
-  petIdFormat    String?  @default("PET####") 
+  petIdFormat    String?  @default("PET####")
+  // Plan & billing
+  plan              String    @default("TRIAL")  // TRIAL | FREE | PRO | ENTERPRISE
+  trialEndsAt       DateTime?
+  paystackCustomerId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -28,8 +32,32 @@ model Clinic {
   notes        Note[]
   invites      Invite[]
   notifications Notification[]
+  subscription  Subscription?
 
   @@map("clinics")
+}
+
+model Subscription {
+  id                 String    @id @default(cuid())
+  clinicId           String    @unique
+  plan               String    // FREE | PRO | ENTERPRISE
+  status             String    // active | cancelled | expired
+  paystackReference  String?   @unique
+  paystackSubCode    String?
+  amount             Int       // in pesewas (GHS x 100)
+  currency           String    @default("GHS")
+  billingCycle       String    // monthly | annual
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelledAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+  @@index([paystackReference])
+  @@map("subscriptions")
 }
 
 model User {
