@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { TRIAL_DAYS } from "@/lib/plans";
 
 export async function completeOnboarding(formData: FormData) {
   try {
@@ -37,6 +38,10 @@ export async function completeOnboarding(formData: FormData) {
       return { error: "Email is required" };
     }
 
+    // Set trial end date - 30 days from now
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
+
     const clinic = await prisma.clinic.create({
       data: {
         name: clinicName,
@@ -45,6 +50,8 @@ export async function completeOnboarding(formData: FormData) {
         timezone: timezone || "GMT",
         petIdMode: petIdMode as "MANUAL" | "AUTO",
         petIdFormat: petIdFormat || "PET####",
+        plan: "TRIAL",
+        trialEndsAt,
       },
     });
 
@@ -71,7 +78,7 @@ export async function completeOnboarding(formData: FormData) {
       console.error("Clerk metadata update error:", clerkError);
     }
 
-    return { success: true, redirectTo: "/" };
+    return { success: true, redirectTo: "/dashboard" };
   } catch (error: any) {
     console.error("Onboarding error:", error);
     return { error: error?.message || "Failed to complete onboarding" };

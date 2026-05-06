@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { TRIAL_DAYS } from "@/lib/plans";
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the current user from Clerk
     const { userId } = await auth();
 
     if (!userId) {
@@ -27,11 +27,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get form data
     const body = await request.json();
     const { clinicName, location, phone, timezone, firstName, lastName, email } = body;
 
-    // Validate required fields
     if (!clinicName || !location || !phone) {
       return NextResponse.json(
         { error: "Missing required fields: clinicName, location, phone" },
@@ -46,29 +44,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create clinic
+    // Set trial end date - 30 days from now
+    const trialEndsAt = new Date();
+    trialEndsAt.setDate(trialEndsAt.getDate() + TRIAL_DAYS);
+
     const clinic = await prisma.clinic.create({
       data: {
         name: clinicName,
         location,
         phone,
         timezone: timezone || "GMT",
+        plan: "TRIAL",
+        trialEndsAt,
       },
     });
 
-    // Create user linked to clinic
     const user = await prisma.user.create({
       data: {
         clerkId: userId,
         email,
         firstName,
         lastName,
-        role: "ADMIN", // First user is always admin
+        role: "ADMIN",
         clinicId: clinic.id,
       },
     });
 
-    // Update Clerk user metadata to mark onboarding as complete
     try {
       const client = await clerkClient();
       await client.users.updateUserMetadata(userId, {
@@ -79,7 +80,6 @@ export async function POST(request: NextRequest) {
       });
     } catch (clerkError) {
       console.error("Clerk metadata update error:", clerkError);
-      // Continue anyway - clinic is created
     }
 
     return NextResponse.json({
