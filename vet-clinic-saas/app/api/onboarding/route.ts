@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      redirectTo: "/upgrade",
       clinic,
       user: {
         id: user.id,

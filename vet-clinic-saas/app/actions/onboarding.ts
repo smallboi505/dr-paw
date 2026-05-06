@@ -78,7 +78,8 @@ export async function completeOnboarding(formData: FormData) {
       console.error("Clerk metadata update error:", clerkError);
     }
 
-    return { success: true, redirectTo: "/dashboard" };
+    // Redirect to upgrade page so new users choose a plan
+    return { success: true, redirectTo: "/upgrade" };
   } catch (error: any) {
     console.error("Onboarding error:", error);
     return { error: error?.message || "Failed to complete onboarding" };
