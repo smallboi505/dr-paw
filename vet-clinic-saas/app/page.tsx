@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
 export default function LandingPage() {
+  const { isSignedIn } = useAuth();
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
 
   const prices = {
@@ -51,8 +53,14 @@ export default function LandingPage() {
           <li><a href="#pricing" className="nav-link">PRICING</a></li>
         </ul>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link href="/sign-in" style={{ background: "#C00000", color: "white", padding: "9px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", letterSpacing: "0.3px" }}>LOG IN</Link>
-          <Link href="/sign-up" style={{ background: "transparent", color: "#C00000", padding: "9px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", border: "1.5px solid #C00000", letterSpacing: "0.3px" }}>SIGN UP</Link>
+          {isSignedIn ? (
+            <Link href="/dashboard" style={{ background: "#C00000", color: "white", padding: "9px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", letterSpacing: "0.3px" }}>GO TO DASHBOARD →</Link>
+          ) : (
+            <>
+              <Link href="/sign-in" style={{ background: "#C00000", color: "white", padding: "9px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", letterSpacing: "0.3px" }}>LOG IN</Link>
+              <Link href="/sign-up" style={{ background: "transparent", color: "#C00000", padding: "9px 22px", borderRadius: 8, fontSize: 13, fontWeight: 600, textDecoration: "none", border: "1.5px solid #C00000", letterSpacing: "0.3px" }}>SIGN UP</Link>
+            </>
+          )}
         </div>
       </nav>
 
