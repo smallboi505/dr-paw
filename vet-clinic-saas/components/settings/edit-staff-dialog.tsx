@@ -51,18 +51,13 @@ export default function EditStaffDialog({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!staff) return;
-
     setLoading(true);
-
     try {
       const response = await fetch(`/api/staff/${staff.id}`, {
         method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-
       if (response.ok) {
         onSuccess();
       } else {
@@ -85,62 +80,41 @@ export default function EditStaffDialog({
         <DialogHeader>
           <DialogTitle>Edit Staff Member</DialogTitle>
         </DialogHeader>
-
         <div className="px-6 pb-6">
-          {/* Clerk ID (Read-only) */}
-          <div className="mb-6 p-4 bg-slate-50 rounded-lg">
-            <p className="text-sm text-slate-600 mb-1">Clerk ID (Read-only)</p>
-            <p className="text-sm font-mono text-slate-900">{staff.clerkId}</p>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>First Name *</Label>
                 <Input
                   required
                   value={formData.firstName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, firstName: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                 />
               </div>
-
               <div className="space-y-2">
                 <Label>Last Name *</Label>
                 <Input
                   required
                   value={formData.lastName}
-                  onChange={(e) =>
-                    setFormData({ ...formData, lastName: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 />
               </div>
             </div>
-
-            {/* Email */}
             <div className="space-y-2">
               <Label>Email *</Label>
               <Input
                 type="email"
                 required
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </div>
-
-            {/* Role */}
             <div className="space-y-2">
               <Label>Role *</Label>
               <Select
                 required
                 value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               >
                 <option value="ADMIN">Admin</option>
                 <option value="VET">Vet</option>
@@ -148,22 +122,11 @@ export default function EditStaffDialog({
                 <option value="RECEPTION">Reception</option>
               </Select>
             </div>
-
-            {/* Buttons */}
             <div className="flex gap-3 justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={loading}
-              >
+              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="bg-[#C00000] hover:bg-[#A00000]"
-              >
+              <Button type="submit" disabled={loading} className="bg-[#C00000] hover:bg-[#A00000]">
                 {loading ? "Saving..." : "Save Changes"}
               </Button>
             </div>

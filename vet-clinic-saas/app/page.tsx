@@ -209,7 +209,7 @@ export default function LandingPage() {
                 </ul>
               </div>
             </div>
-            <Link href="/sign-up" className="plan-btn" style={{ display: "block", margin: "0 24px 24px", padding: 12, textAlign: "center", borderRadius: 8, fontSize: 13, fontWeight: 700, letterSpacing: "0.5px", textDecoration: "none", border: "2px solid #E8E8E8", color: "#6B6B6B" }}>GET STARTED FREE</Link>
+            <Link href={isSignedIn ? "/upgrade" : "/sign-up"} className="plan-btn" style={{ display: "block", margin: "0 24px 24px", padding: 12, textAlign: "center", borderRadius: 8, fontSize: 13, fontWeight: 700, letterSpacing: "0.5px", textDecoration: "none", border: "2px solid #E8E8E8", color: "#6B6B6B" }}>GET STARTED FREE</Link>
           </div>
 
           {/* PRO */}
@@ -226,7 +226,7 @@ export default function LandingPage() {
                 </ul>
               </div>
             </div>
-            <Link href="/sign-up" className="plan-btn" style={{ display: "block", margin: "0 24px 24px", padding: 12, textAlign: "center", borderRadius: 8, fontSize: 13, fontWeight: 700, letterSpacing: "0.5px", textDecoration: "none", border: "2px solid #C00000", color: "#C00000" }}>UPGRADE TO PRO</Link>
+            <Link href={isSignedIn ? "/upgrade" : "/sign-up"} className="plan-btn" style={{ display: "block", margin: "0 24px 24px", padding: 12, textAlign: "center", borderRadius: 8, fontSize: 13, fontWeight: 700, letterSpacing: "0.5px", textDecoration: "none", border: "2px solid #C00000", color: "#C00000" }}>UPGRADE TO PRO</Link>
           </div>
 
           {/* ENTERPRISE */}
@@ -242,7 +242,7 @@ export default function LandingPage() {
                 </ul>
               </div>
             </div>
-            <Link href="/sign-up" className="plan-btn" style={{ display: "block", margin: "0 24px 24px", padding: 12, textAlign: "center", borderRadius: 8, fontSize: 13, fontWeight: 700, letterSpacing: "0.5px", textDecoration: "none", border: "2px solid #C00000", color: "#C00000" }}>UPGRADE TO ENTERPRISE</Link>
+            <Link href={isSignedIn ? "/upgrade" : "/sign-up"} className="plan-btn" style={{ display: "block", margin: "0 24px 24px", padding: 12, textAlign: "center", borderRadius: 8, fontSize: 13, fontWeight: 700, letterSpacing: "0.5px", textDecoration: "none", border: "2px solid #C00000", color: "#C00000" }}>UPGRADE TO ENTERPRISE</Link>
           </div>
         </div>
       </section>
