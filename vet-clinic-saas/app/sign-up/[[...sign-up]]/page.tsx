@@ -52,13 +52,21 @@ function SignUpContent() {
     setError("");
     try {
       const completeSignUp = await signUp.attemptEmailAddressVerification({ code });
+
+      // DEBUG - log the full status
+      console.log("Verification status:", completeSignUp.status);
+      console.log("Missing fields:", completeSignUp.missingFields);
+      console.log("Unverified fields:", completeSignUp.unverifiedFields);
+      console.log("Full object:", JSON.stringify(completeSignUp, null, 2));
+
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
         router.push(isInviteSignup && redirectUrl ? redirectUrl : "/onboarding");
       } else {
-        setError("Verification failed. Please try again.");
+        setError(`Status: ${completeSignUp.status}. Missing: ${completeSignUp.missingFields?.join(", ") || "none"}`);
       }
     } catch (err: any) {
+      console.error("Verify error full:", JSON.stringify(err, null, 2));
       const clerkError = err.errors?.[0];
       setError(clerkError?.longMessage || clerkError?.message || "Invalid verification code");
     } finally {
@@ -170,6 +178,7 @@ function SignUpContent() {
           </div>
           <p className="text-xs text-slate-500">Must be at least 8 characters</p>
         </div>
+        <div id="clerk-captcha" />
         <Button type="submit" disabled={loading || !isLoaded} className="w-full h-12 bg-[#C00000] hover:bg-[#A00000] text-white text-lg font-semibold">
           {loading ? "Creating Account..." : "Sign Up"}
         </Button>

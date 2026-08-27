@@ -21,7 +21,7 @@ export default function Sidebar() {
   const { isOpen, closeMenu } = useMobileMenu();
 
   const navItems = [
-    { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+    { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { href: "/pets", icon: PawPrint, label: "Pets" },
     { href: "/owners", icon: Users, label: "Owners" },
     { href: "/appointments", icon: Calendar, label: "Appointments" },
